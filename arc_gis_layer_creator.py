@@ -27,9 +27,6 @@ data_frame = arcpy.mapping.ListDataFrames(mxd)[0]
 layer = arcpy.mapping.ListLayers(data_frame, layer_name)[0]
 print(layer)
 
-# query = "NEAR_FID = 70"
-# arcpy.SelectLayerByAttribute_management(layer, "NEW_SELECTION", query)
-
 arcpy.SelectLayerByAttribute_management(layer, "CLEAR_SELECTION")
 
 
@@ -43,56 +40,34 @@ print("Unique values in 'NEAR_FID':", unique_values)
 
 
 for value in unique_values:
-    # Define a new layer name based on the unique value
-    new_layer_name = new_layer_name = "fLayer_" + dt_string + "_" + str(value)
-
-    # Define the query to select rows with the current unique value
+    # Construct the query to select rows with the current unique value
     query = "{} = {}".format(field_name, value)
 
-    # Create the new layer based on the query
-    arcpy.SelectLayerByAttribute_management(layer, "NEW_SELECTION", query)
+    # Create a unique layer name
+    new_layer_name = "fLayer_" + dt_string + "_" + str(value)
 
+    # Create a new temporary layer for each unique value
+    temp_layer_name = "tempLayer_" + str(value)
+    arcpy.MakeFeatureLayer_management(layer, temp_layer_name, query)
+
+    # Create a new feature class from the selected features
     arcpy.FeatureClassToFeatureClass_conversion(
-        layer,
+        temp_layer_name,
         new_folder_path,
         new_layer_name,
-        where_clause=query,
     )
 
+    # Path to the new layer
     new_layer_path = os.path.join(new_folder_path, new_layer_name + ".shp")
-    try:
-        layer = arcpy.mapping.Layer(new_layer_path)
-        print("Layer is valid and created successfully - {}".format(new_layer_name))
-    except Exception as e:
-        print("Error creating layer:", e)
-    
+
+    # Add the new layer to the data frame
     new_layer = arcpy.mapping.Layer(new_layer_path)
     arcpy.mapping.AddLayer(data_frame, new_layer, "TOP")
-    new_layer.name = new_layer_name
 
+    # Clear the temporary layer to avoid conflicts
+    arcpy.Delete_management(temp_layer_name)
 
+    print("Created and added new layer:", new_layer_name)
 
-# new_layer_name = "fLayer_" + dt_string + "_70" 
-
-# arcpy.FeatureClassToFeatureClass_conversion(
-#     layer,
-#     new_folder_path,
-#     new_layer_name,
-#     where_clause=query,
-# )
-
-# new_layer_path = os.path.join(new_folder_path, new_layer_name + ".shp")
-# print(new_layer_path)
-
-
-# try:
-#     layer = arcpy.mapping.Layer(new_layer_path)
-#     print("Layer is valid and created successfully")
-# except Exception as e:
-#     print("Error creating layer:", e)
-
-# new_layer = arcpy.mapping.Layer(new_layer_path)
-# arcpy.mapping.AddLayer(data_frame, new_layer, "TOP")
-# new_layer.name = new_layer_name
 
 mxd.save()
